@@ -166,7 +166,7 @@ virusEntireSeq <- calculate_genomic(featureDat, VIRUS_SEQS_FASTA, noncoding = TR
 
 virusFeatures <- virusCoding %>% 
 	full_join(virusEntireSeq, by = 'SeqName') %>% 
-	left_join(virusMetaData, by = c('SeqName' = 'LatestSppName'))
+	rename(LatestSppName = SeqName)
 
 
 

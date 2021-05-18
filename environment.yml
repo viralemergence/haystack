@@ -12,15 +12,15 @@ dependencies:
   - r-seqinr=3.4
   - r-EnvStats=2.3.1
   - r-matrixStats=0.54
+  - r-doParallel=1.0.14
   - r-xgboost=0.90
   - r-caret=6.0_85
+  - r-e1071=1.7_0
   - r-argparse=2.0.1
   - r-modelmetrics=1.2.2
-  - r-betacal=0.1.0
   - python=3.6.5
   - biopython=1.72
   - xlrd=1.1.0
   - pandas=0.23.0
   - requests=2.18.4
   - openjdk=11.0.1
-  

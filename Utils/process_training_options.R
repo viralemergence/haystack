@@ -14,15 +14,9 @@ parser$add_argument('RunID', type = 'character',
 										help = 'an identifier for this run, used as a base to name output files')
 
 
-# Optional arguments:
-# Use publication count to weight samples?
-parser$add_argument('--useWeights', action = 'store_const', const = TRUE, default = FALSE,
-										help = 'Use publication count to weight samples')
-
+## Optional arguments:
 # Feature types to include in training:
 featureGroup <- parser$add_argument_group('Feature sets')
-featureGroup$add_argument('--includePN', action = 'store_const', const = TRUE, default = FALSE,
-													help = 'include features summarising the proportions of zoonotic and vector-borne viruses in the phylogenetic neigbourhood')
 featureGroup$add_argument('--includeVirusFeatures', action = 'store_const', const = TRUE, default = FALSE,
 													help = 'include direct genomic features (calculated directly from virus genomes)')
 featureGroup$add_argument('--includeISG', action = 'store_const', const = TRUE, default = FALSE,
@@ -31,10 +25,12 @@ featureGroup$add_argument('--includeHousekeeping', action = 'store_const', const
 													help = 'include genomic features relative to human housekeeping genes')
 featureGroup$add_argument('--includeRemaining', action = 'store_const', const = TRUE, default = FALSE,
 													help = 'include genomic features relative to remaining human genes')
-featureGroup$add_argument('--includeProteinMotifs', action = 'store_const', const = TRUE, default = FALSE,
-													help = 'include protein motif features')
-featureGroup$add_argument('--includeTaxonomy', action = 'store_const', const = TRUE, default = FALSE,
-													help = 'include virus taxonomy (family and proportion zoonotic in family)')
+featureGroup$add_argument('--includeSVD_clover', action = 'store_const', const = TRUE, default = FALSE,
+													help = 'include SVD embeddings of observed host range (i.e. the clover database)')
+featureGroup$add_argument('--includeSVD_trefle', action = 'store_const', const = TRUE, default = FALSE,
+													help = 'include SVD embeddings of imputed host range (i.e. clover plus imputations)')
+featureGroup$add_argument('--SVD_max_rank', type = 'integer', default = 12, 
+													help = 'maximum rank to include for SVD features')
 
 
 # Options to control training
@@ -65,14 +61,11 @@ if (INPUT$trainProportion <= 0 | INPUT$trainProportion >= 1)
 	stop('trainProportion should be between 0 and 1') # But exactly 0 or 1 makes no sense either
 
 
-if (! any(INPUT$includePN, INPUT$includeVirusFeatures, INPUT$includeISG, 
-					INPUT$includeHousekeeping, INPUT$includeRemaining, INPUT$includeProteinMotifs, 
-					INPUT$includeTaxonomy))
+if (! any(INPUT$includeVirusFeatures, INPUT$includeISG, 
+					INPUT$includeHousekeeping, INPUT$includeRemaining, 
+					INPUT$includeSVD_clover, INPUT$includeSVD_trefle))
 	stop('At least one of the feature set flags must be set. See TrainAndValidate.R --help')
 
-
-if (INPUT$useWeights)
-	stop('Weighting training data by publication count is no longer implemented - will need changes to TrainAndValidate.R')
 
 if (INPUT$nboot <= 0)
 	stop('nboot must be positive')
@@ -92,7 +85,7 @@ if (INPUT$nboot %% INPUT$nseeds != 0)
 # =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 set.seed(INPUT$RandomSeed)
 
-InputData <- readRDS(file.path('CalculatedData', 'SplitData_Training.rds'))
+InputData <- readRDS(file.path('CalculatedData', 'FinalData_Cleaned.rds'))
 
 
 # =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
@@ -100,30 +93,16 @@ InputData <- readRDS(file.path('CalculatedData', 'SplitData_Training.rds'))
 # =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 FinalData <- InputData  # Will be modified below
 
-# Publication counts: Used for weighting cases (if requested):
-if (INPUT$useWeights) {
-	PublicationCounts <- read.csv(file.path('InternalData', 'PublicationCounts.csv'))
-	
-	FinalData <- InputData %>% 
-		left_join(PublicationCounts, by = c('LatestSppName' = 'VirusName'))
-}
-
-
-if (INPUT$includePN) {
-	# Load sequences
-	AllSeqs <- read.fasta(file.path('ExternalData', 'Sequences', 'CombinedSequences.fasta'), as.string = T)
-}
-
 
 if (INPUT$includeVirusFeatures) {
 	# Virus features (created by CalculateGenomicFeatures.R)
 	VirusFeaturesDirect <- readRDS(file.path('CalculatedData', 'GenomicFeatures-Virus.rds'))
 	
 	VirusFeaturesDirect <- VirusFeaturesDirect %>% 
-		rename_at(vars(-UniversalName, -Strain), ~ paste('VirusDirect', ., sep = '_'))
+		rename_at(vars(-LatestSppName), ~ paste('VirusDirect', ., sep = '_'))
 	
 	FinalData <- FinalData %>% 
-		left_join(VirusFeaturesDirect, by = c('UniversalName', 'Strain'))
+		left_join(VirusFeaturesDirect, by = 'LatestSppName')
 }
 
 
@@ -136,69 +115,34 @@ if (INPUT$includeISG | INPUT$includeHousekeeping | INPUT$includeRemaining) {
 	if (!INPUT$includeRemaining) GenomicDistances <- select(GenomicDistances, -contains('_Remaining_'))
 	
 	FinalData <- FinalData %>% 
-		left_join(GenomicDistances, by = c('UniversalName', 'Strain'))
+		left_join(GenomicDistances, by = 'LatestSppName')
 }
 
 
-if (INPUT$includeProteinMotifs) {
-	# This option not fully implemented:
-	warning('Inclusion of protein motifs requested - check that these have been subjected to screening in SelectFeatures.R. Otherwise, this option will have no effect.')
+if (INPUT$includeSVD_clover | INPUT$includeSVD_trefle) {
+	raw_embeddings <- read.csv("ExternalData/svd_embeddings.csv", stringsAsFactors = FALSE)
 	
-	MotifBias <- read.csv(file.path('CalculatedData', 'ProteinMotifs_Bias.csv'))
-	MotifDistance <- read.csv(file.path('CalculatedData', 'ProteinMotifs_Distance.csv'))
+	raw_embeddings <- raw_embeddings %>% 
+		filter(rank <= INPUT$SVD_max_rank)
 	
-	MotifBias <- MotifBias %>% 
-		select(-Nmatches, -Npossible, -ExpectedFrequency) %>% 
-		mutate(ELM_Accession = paste('MotifBias', ELM_Accession, sep = '_')) %>% 
-		spread(key = 'ELM_Accession', value = 'MatchBias')
+	if (INPUT$includeSVD_clover) {
+		clover_feats <- raw_embeddings %>% 
+			select(virus, rank, clover_nohuman) %>% 
+			mutate(rank = paste0("svd_clover_", rank)) %>% 
+			spread(key = rank, value = clover_nohuman)
+		
+		FinalData <- FinalData %>% 
+			left_join(clover_feats, by = c("LatestSppName" = "virus"))
+	}
 	
-	MotifDistance <- MotifDistance %>% 
-		mutate(ELM_Accession = paste('MotifDistance', ELM_Accession, sep = '_')) %>% 
-		spread(key = 'ELM_Accession', value = 'MeanDistance')
-	
-	
-	FinalData <- FinalData %>% 
-		left_join(MotifBias, by = c('UniversalName', 'Strain')) %>% 
-		left_join(MotifDistance, by = c('UniversalName', 'Strain'))
+	if (INPUT$includeSVD_trefle) {
+		trefle_feats <- raw_embeddings %>% 
+			select(virus, rank, trefle_nohuman) %>% 
+			mutate(rank = paste0("svd_trefle_", rank)) %>% 
+			spread(key = rank, value = trefle_nohuman)
+		
+		FinalData <- FinalData %>% 
+			left_join(trefle_feats, by = c("LatestSppName" = "virus"))
+	}
 }
 
-
-if (INPUT$includeTaxonomy) {
-	# Include info on taxonomy (down to family level) as well as the proportion of the family 
-	# which is zoonotic
-	#		- Proportion zoonotic needs to be calculated on the fly during training, since it depends on the 
-	#		  test data in each iteration
-	
-	# Merge taxonomy sources:
-	# - This ensures higher level taxonomic info for unclassified viruses is up to date - only the
-	#   family comes from Genbank / the original authors
-	# - Missing levels are interpolated to ensure lineages are maintained
-	TaxonomyData <- read_excel(file.path('ExternalData', 'ICTV_MasterSpeciesList_2018b.xlsx'),
-														 sheet = 'ICTV 2018b Master Species #34 v', col_types = "text")
-	UnclassifiedTaxonomy <- read.csv(file.path('InternalData', 'Taxonomy_UnclassifiedViruses.csv'),
-																	 stringsAsFactors = FALSE)
-	
-	TaxonomyData <- TaxonomyData %>% 
-		mutate(Species = str_replace(Species, '\u00A0$', ''))  # Remove trailing non-breaking spaces in names
-	
-	Lineages <- TaxonomyData %>% 
-		distinct(Phylum, Subphylum, Class, Subclass, Order, Suborder, Family)
-	
-	MergedTaxonomy <- UnclassifiedTaxonomy %>% 
-		select(Species = UniversalName, Family) %>% 
-		filter(! Species %in% TaxonomyData$Species) %>% 
-		left_join(Lineages, by = 'Family') %>% 
-		bind_rows(TaxonomyData) %>% 
-		filter(Species %in% FinalData$LatestSppName) %>% 
-		add_artificial_levels() %>% 
-		select(Phylum, Subphylum, Class, Order, Suborder, Family, Species) %>% 
-		rename_at(vars(-Species), list(~paste0('Taxonomy_', .))) %>% 
-		mutate_at(vars(-Species), as.factor)  # This ensures dummy columns are created for all levels,
-																					# even when some are missing in a particular dataset
-	
-	# Join to other data:
-	stopifnot(all(FinalData$LatestSppName %in% MergedTaxonomy$Species))
-	
-	FinalData <- FinalData %>% 
-		left_join(MergedTaxonomy, by = c('LatestSppName' = 'Species'))
-}

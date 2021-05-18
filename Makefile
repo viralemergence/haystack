@@ -133,7 +133,7 @@ DIRECT_GENOMIC = CalculatedData/GenomicFeatures-Virus.rds
 RELATIVE_GENOMIC = CalculatedData/GenomicFeatures-Distances.rds
 
 # Data common to all possible train calls:
-TRAIN_REQUIREMENTS = CalculatedData/SplitData_Training.rds
+TRAIN_REQUIREMENTS = CalculatedData/FinalData_Cleaned.rds
 
 N_FEATS = 125  # Optimized in preious manuscript (zoonotic_rank)
 
@@ -194,9 +194,6 @@ TRAIN_OUTPUT_FOLDERS = $(patsubst %, RunData/%, $(ALL_RUN_IDS))
 .PHONY: train
 train: $(TRAIN_OUTPUT_FOLDERS)
 
-
-# From here on: checking all rundata directories for the files needed / created below:
-VPATH = $(TRAIN_OUTPUT_FOLDERS)
 
 
 # ----------------------------------------------------------------------------------------

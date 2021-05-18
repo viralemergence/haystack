@@ -5,11 +5,9 @@
 suppressPackageStartupMessages({
 	library(rprojroot)
 	library(seqinr)
-	library(ape)
 	library(plyr)  # Not used directly, but loaded by caret::train() - here ensuring it is loaded before dplyr to avoid issues
 	library(dplyr)
 	library(tidyr)
-	library(readxl)
 	library(stringr)
 	library(caret)
 	library(doParallel)
@@ -23,9 +21,6 @@ setwd(RootDir)
 # ---- Constants ----------------------------------------------------------------------------------
 # =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 # These options are not currently exposed:
-BLAST_CACHE <- file.path(RootDir, 'cached_blast_searches')
-
-
 # Hyper-parameter search (performed for each bootstrap):
 CV_K <- 5                  # Number of folds for k-fold cross-validation
 N_HYPER_PARAMS <- 500      # Number of hyper-parameter combinations to try in each iteration
@@ -47,9 +42,6 @@ TUNING_PARAMETERS <- list(eta = c(0.001, 0.005, seq(0.01, 0.2, by = 0.02)),
 # =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 source(file.path('Utils', 'selection_utils.R'))
 source(file.path('Utils', 'subset_utils.R'))
-source(file.path('Utils', 'blast_utils.R'))
-source(file.path('Utils', 'PNsummary_utils.R'))
-source(file.path('Utils', 'taxonomy_utils.R'))
 source(file.path('Utils', 'xgboost_utils.R'))
 source(file.path('Utils', 'select_features.R'))
 
@@ -75,12 +67,8 @@ source(file.path('Utils', 'process_training_options.R'))
 
 set.seed(INPUT$RandomSeed)
 
-BLAST_FRAGMENTS <- INPUT$nthread * 4  # Number of parallel/sequential blast searches (see blastn_parallel())
-																			# Currently, 4 fragments processed on each thread
-
 cl <- makeCluster(INPUT$nthread)
 registerDoParallel(cl)
-
 
 
 # =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
@@ -94,82 +82,6 @@ PREDICT_COLUMN <- 'InfectsHumans'
 
 
 # =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
-# ---- Phylogenetic neighbourhood calculations ----------------------------------------------------
-# =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
-# These vary depdending on the test/train split: only training viruses are considered 'known' and
-# thus available to be phylogenetic neigbour
-#	However, we can perform a single blast search to define neighbours, since the only
-#  things that will change for each training set are 
-#			(a) which viruses are available to match
-#			(b) the e-values of these matches (since database size has changed)
-#	These factors are corrected for in each iteration below
-
-if (INPUT$includePN) {
-	# Blast all-against-all
-	used_seqs <- subset_sequences(AllSeqs, unique(FinalData$Accessions))
-	
-	full_blast_results <- cached_blast(querySeqs = used_seqs, 
-																		 dbSeqs = used_seqs,
-																		 max_target_seqs = 10000,  # Very high, so this param does not become the limiting factor for matches
-																		 nfragments = BLAST_FRAGMENTS, 
-																		 nthreads = INPUT$nthread, 
-																		 cache_dir = BLAST_CACHE)
-	
-	
-	# Set up default data and options for PN summaries:
-	pn_defaults <- list(pIdentityCutoffs = c(0, 60, 70, 80),
-											maxNeighbours = 5,  
-											positiveName = POSITIVE_NAME,
-											nthreads = INPUT$nthread,
-											minimal = TRUE)
-	
-	
-	# Main logic for calculating PN features:
-	get_pn_features <- function(queryAccessions, dbData, removeSelf = FALSE,
-															blastResults = full_blast_results, allSequences = used_seqs, fullData = FinalData, 
-															hostPhylogeny = HostPhylo, 
-															reservoirPhylogeny = ReservoirPhylo,
-															pnDefaults = pn_defaults) {
-		
-		# Extract relevant sequences
-		train_seqs <- subset_sequences(allSequences, unique(dbData$Accessions))
-		
-		# Correct blast results for the new database
-		queryAccessions <- strsplit(queryAccessions, split = '; ') %>% 
-			unlist()
-		
-		corrected_blast_results <- blastResults %>% 
-			filter(queryID %in% queryAccessions) %>% 
-			subset_blast(full_db_sequences = allSequences, 
-									 subset_db_sequences = train_seqs)
-		
-		
-		# Post-process blast results
-		corrected_blast_results <- corrected_blast_results %>%
-			clean_blast_hits(removeSelf = removeSelf) %>%
-			add_names_to_blast(fullData)
-		
-		
-		# Calculate PN features
-		pnParams <- c(pnDefaults,
-									list(namedBlastRes = corrected_blast_results,
-											 matchData = unique(dbData)))
-		
-		pnSummary <- do.call(summarise_pn, pnParams)
-		
-		pnSummary
-	}
-} else {
-	get_pn_features <- function(...) {}
-}
-
-
-# Setting seed again to ensure all random splits are the same across different runs
-# (different input options may have triggered differing numbers of sampling steps before this point)
-set.seed(INPUT$RandomSeed)
-
-
-# =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 # ---- Feature selection --------------------------------------------------------------------------
 # =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 # Find the best features predicting the response - this speeds up code below and also helps reduce
@@ -177,20 +89,13 @@ set.seed(INPUT$RandomSeed)
 
 # Non-feature columns:
 # - These may be needed in calculating features, but should not be used for training directly
-RemoveCols <- c('LatestSppName', 'Accessions', 'OtherTaxonomicInfo',
-								'Reservoir', 'Hosts', 'VectorBorne', 'Vector', 'PubmedResults', 'Reference_Reservoir',
-								'Reference_Vector', 'Reference', 'DataSource', 'HumanOnly', 'IndirectDetectionOnly',
-								'HumanVirus', 'Olival', 'SppName_ICTV_MSL2018v1', 'Remove', 'X')
+RemoveCols <- c('LatestSppName', 'Accessions', 'IndirectDetectionOnly')
 
 
 selected_features <- select_best_features(data = FinalData, 
 																					predict_column = PREDICT_COLUMN, 
 																					positive_name = POSITIVE_NAME, 
 																					removecols = RemoveCols, 
-																					pn_feature_function = get_pn_features, 
-																					random_seed = INPUT$RandomSeed, 
-																					include_pn = INPUT$includePN, 
-																					include_taxonomy = INPUT$includeTaxonomy, 
 																					n_features = INPUT$topFeatures, 
 																					train_proportion = INPUT$trainProportion)
 
@@ -231,35 +136,6 @@ for (s in 1:INPUT$nseeds) {
 		
 		testData <- FinalData %>% 
 			filter(! LatestSppName %in% c(trainData$LatestSppName, calibrationData$LatestSppName))
-		
-		
-		## Add PN / taxonomy features (these are based on 'known' viruses, i.e. those present in training data)
-		if (INPUT$includePN) {
-			train_PN_summary <- get_pn_features(queryAccessions = trainData$Accessions, dbData = trainData, removeSelf = TRUE)
-			
-			calibration_PN_summary <- get_pn_features(queryAccessions = calibrationData$Accessions, dbData = trainData)  # Blast db is always training data only
-			test_PN_summary <- get_pn_features(queryAccessions = testData$Accessions, dbData = trainData)								 # Blast db is always training data only
-			
-			# Joins below only valid if LatestSppNames are unique:
-			stopifnot(nrow(trainData) == length(unique(trainData$LatestSppName)))
-			stopifnot(nrow(calibrationData) == length(unique(calibrationData$LatestSppName)))
-			stopifnot(nrow(testData) == length(unique(testData$LatestSppName)))
-			
-			trainData <- full_join(trainData, train_PN_summary, by = c(LatestSppName = 'queryUniversalName'))
-			calibrationData <- full_join(calibrationData, calibration_PN_summary, by = c(LatestSppName = 'queryUniversalName'))
-			testData <- full_join(testData, test_PN_summary, by = c(LatestSppName = 'queryUniversalName'))
-		}
-		
-		if (INPUT$includeTaxonomy) {
-			train_proportions <- trainData %>%
-				group_by(Taxonomy_Family) %>%
-				summarise(Taxonomy_PropPositiveInFamily = sum(InfectsHumans == POSITIVE_NAME) / n()) %>%
-				ungroup()
-			
-			trainData <- left_join(trainData, train_proportions, by = 'Taxonomy_Family')
-			calibrationData <- left_join(calibrationData, train_proportions, by = 'Taxonomy_Family')
-			testData <- left_join(testData, train_proportions, by = 'Taxonomy_Family')
-		}
 		
 		
 		## Final set of features to use:

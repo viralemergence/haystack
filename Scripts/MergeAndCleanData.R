@@ -50,7 +50,8 @@ FinalData <- FinalData %>%
 
 ## Rename columns to match downstream scripts
 FinalData <- FinalData %>% 
-  rename(Accessions = accession)
+  rename(InfectsHumans = IsZoonotic,
+         Accessions = accession)
 
 
 # =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=

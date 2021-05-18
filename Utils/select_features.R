@@ -6,9 +6,7 @@ library(stringr)
 
 # USAGE:
 # select_features(FinalData, predict_column = PREDICT_COLUMN, positive_name = POSITIVE_NAME,
-# 								removecols = removeCols, pn_feature_function = get_pn_features,
-# 								random_seed = INPUT$randomSeed,
-# 								include_pn = INPUT$includePN, inlcude_taxonomy = INPUT$includeTaxonomy,
+# 								removecols = removeCols,
 # 								n_features = INPUT$nfeatures, train_proportion = INPUT$trainProportion)
 
 
@@ -17,15 +15,10 @@ library(stringr)
 # - predict_column: the column containing the response variable
 # - positive_name: value in predict_column to be considered as the 'TRUE' or positive class
 # - removecols: columns in data which are not to be considered features
-# - pn_feature_function: a function capable of calculating PN features
-# - random_seed: a random seed to use during training
-# - include_pn: Should PN features be included?
-# - inlcude_taxonomy: Should taxonomy features be included?
 # - n_features: number of features to retain
 # - n_repeats: number of random test-train splits to perform
 # - train_proportion: proportion of data to select for training
 select_best_features <- function(data, predict_column, positive_name, removecols, 
-																 pn_feature_function, random_seed,
 																 n_features = 100, n_repeats = 100, train_proportion = 0.7) {
 	
 	# These are the defaults for xgboost
