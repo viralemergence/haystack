@@ -1,0 +1,11 @@
+name: haystack_zoonotic
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - r-base=3.5.1
+  - python=3.6.5
+  - biopython=1.72
+  - xlrd=1.1.0
+  - pandas=0.23.0
+  - openjdk=11.0.1

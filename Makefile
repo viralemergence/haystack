@@ -16,13 +16,8 @@ all: download \
 	 merge_zoonotic_status \
 	 merge_and_clean_data \
 	 calculate_genomic \
-	 select_holdout \
-	 feature_selection_runs \
 	 train \
 	 bag_predictions \
-	 train_tax \
-	 predict_novel \
-	 predict_sarbeco \
 	 make_plots
 
 
@@ -130,22 +125,9 @@ CalculatedData/GenomicFeatures-Virus.rds: CalculatedData/FinalData_Cleaned.rds \
 calculate_genomic: CalculatedData/GenomicFeatures-Virus.rds
 
 
-# ----------------------------------------------------------------------------------------
-#?	 7. Remove viruses with only partial genomes available (select_holdout)
-# ----------------------------------------------------------------------------------------
-# NOTE: Holdout not currently used (not enough data), but this script also
-#		separates out viruses with partial genomes, which should not be used 
-#		for training, so we still need it
-CalculatedData/%_Holdout.rds CalculatedData/%_Training.rds: CalculatedData/FinalData_Cleaned.rds
-	Rscript Scripts/SelectHoldoutData.R $(RANDOM_SEED) --holdoutProportion 0
-
-
-.PHONY: select_holdout
-select_holdout: CalculatedData/SplitData_Holdout.rds
-
 
 # ----------------------------------------------------------------------------------------
-#?	 9. Train models (train)
+#?	 7. Train models (train)
 # ----------------------------------------------------------------------------------------
 # NOTE: $(notdir $(@)) means the last part of the target, i.e. 'RunID' in 'RunData/RunID'
 
@@ -221,7 +203,7 @@ VPATH = $(TRAIN_OUTPUT_FOLDERS)
 
 
 # ----------------------------------------------------------------------------------------
-#?	10. Bagged predictions (bag_predictions)
+#?	8. Bagged predictions (bag_predictions)
 # ----------------------------------------------------------------------------------------
 # Currently only using bagging for long runs - need each virus to occur enough test sets:
 RunData/AllGenomeFeatures_and_SVD_trefle_rank12_LongRun/AllGenomeFeatures_and_SVD_trefle_rank12_LongRun_Bagged_predictions.rds: | RunData/AllGenomeFeatures_and_SVD_trefle_rank12_LongRun
@@ -234,13 +216,13 @@ bag_predictions: RunData/AllGenomeFeatures_and_SVD_trefle_rank12_LongRun/AllGeno
 
 
 # ----------------------------------------------------------------------------------------
-#?	14. Plot (make_plots)
+#?	9. Plot (make_plots)
 # ----------------------------------------------------------------------------------------
 
 # TODO
 
-# .PHONY: make_plots
-# make_plots: 
+.PHONY: make_plots
+make_plots: 
 
 
 

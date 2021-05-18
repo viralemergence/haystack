@@ -12,15 +12,17 @@ Code used for the zoonotic potential part of Poisot _et al._ (2021) "Imputing th
 
 
 ## Requirements
-- [R](https://www.r-project.org/) (tested using version 3.5.1)
-   - Most required R libraries can be installed using `Rscript -e "renv::restore()"`
-   - Install `ggtree` from bioconductor using: `Rscript -e "install.packages('BiocManager'); BiocManager::install('ggtree')"`
-- [Python](https://www.python.org/) (version >=3.6)
-   - [Biopython](https://biopython.org/)
-   - [Pandas](https://pandas.pydata.org/)
-   - [xlrd](https://xlrd.readthedocs.io/en/latest/)
-- [Java JDK](https://www.oracle.com/uk/java/technologies/javase-downloads.html) (version >=8)
+- Install the [conda package manager](https://conda.io/)
+- Install and activate the base environment:
+```
+conda env create -f environment.yml
+conda activate haystack_zoonotic
+```
 
+- Install required R packages
+```
+Rscript -e "renv::restore()"
+```
 
 
 ## Usage
@@ -30,16 +32,12 @@ Follow instructions below to repeat the analyses described in the manuscript. No
 #### Basic
 These steps will download any missing source data and automatically create/update files as needed.
 
-_Using Rstudio:_
-1. Open `haystack_zoonotic.Rproj` in RStudio
-2. On the `Build` tab, select `More` > `Clean and Rebuild`
-
-_Using the command-line:_
 ```
-make clean all
+conda activate haystack_zoonotic
+make
 ```
 
-#### Advanced options (command-line only)
+#### Advanced options
 
 - Use `make help` to see individual steps in the pipeline. Upstream steps are run automatically if needed. For example, using `make prepare` will run the data cleanup step, but also downloads the raw data if needed.
 - `make <path to file>` runs all steps neccesary to produce/update the specified file (e.g. `make Plots/Figure1.pdf`).
