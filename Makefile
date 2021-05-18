@@ -84,7 +84,6 @@ get_transcripts: CalculatedData/HumanGeneSets/TranscriptSequences.fasta
 #?	 4. Create zoonotic status data (merge_zoonotic_status)
 # ----------------------------------------------------------------------------------------
 CalculatedData/ZoonoticStatus_Merged.rds: ExternalData/clover.csv
-	mkdir -p CalculatedData
 	Rscript Scripts/MergeZoonoticStatusData.R
 
 .PHONY: merge_zoonotic_status
@@ -97,9 +96,7 @@ merge_zoonotic_status: CalculatedData/ZoonoticStatus_Merged.rds
 # ----------------------------------------------------------------------------------------
 # This has multiple outputs: using a pattern rule ensures the command is
 # run just once (see https://www.cmcrossroads.com/article/rules-multiple-outputs-gnu-make)
-CalculatedData/FinalData_%.rds CalculatedData/FinalData_%.csv: InternalData/AllInternalData_Checked.csv \
-															   InternalData/NameMatches_All.csv \
-															   InternalData/Final_Accessions_Unique_Spp.csv \
+CalculatedData/FinalData_%.rds CalculatedData/FinalData_%.csv: InternalData/svd_curated_accessions.csv \
 															   CalculatedData/ZoonoticStatus_Merged.rds
 	Rscript Scripts/MergeAndCleanData.R
 

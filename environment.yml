@@ -21,4 +21,6 @@ dependencies:
   - biopython=1.72
   - xlrd=1.1.0
   - pandas=0.23.0
+  - requests=2.18.4
   - openjdk=11.0.1
+  
