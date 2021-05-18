@@ -5,7 +5,7 @@ Created on Thu Jun  7 15:23:39 2018
 
 @author: nardus
 
-- Download the genbank files matching accessions in '../InternalData/AllInternalData_Checked.csv'
+- Download the genbank files matching accessions in '../InternalData/svd_curated_accessions.csv'
 - Merge these into a single fasta file
 - Files are named using only the accession number (because some virus names
   in the dataset contain slashes)
@@ -16,7 +16,7 @@ import pandas as pd
 from Bio import Entrez, SeqIO
 from urllib.error import HTTPError
 
-Entrez.tool = "ZoonosisPredictor pipeline - DownloadSequences.py"
+Entrez.tool = "haystack_zoonotic pipeline - DownloadSequences.py"
 
 Entrez.email = input("Enter an email address to use NCBI e-utils: ")
 
@@ -24,14 +24,14 @@ Entrez.email = input("Enter an email address to use NCBI e-utils: ")
 # =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 ## Get and check accessions
 # =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
-InternalData = pd.read_csv("./InternalData/Final_Accessions_Unique_Spp.csv")
+InternalData = pd.read_csv("./InternalData/svd_curated_accessions.csv")
 
 # Split accessions of segmented viruses:
 Accessions = []
 
 for row in InternalData.iterrows():
-    if not row[1].isnull()['Genbank.accession']:  # Some entries do not have accession numbers (no sequences available)
-        acc = row[1]["Genbank.accession"]
+    if not row[1].isnull()["accession"]:  # Some entries do not have accession numbers (no sequences available)
+        acc = row[1]["accession"]
         Accessions += acc.split("; ")
 
 # Remove trailing spaces (if any):
