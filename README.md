@@ -19,11 +19,6 @@ conda env create -f environment.yml
 conda activate haystack_zoonotic
 ```
 
-- Install required R packages
-```
-Rscript -e "renv::restore()"
-```
-
 
 ## Usage
 
