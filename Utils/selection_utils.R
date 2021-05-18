@@ -10,7 +10,7 @@ library(dplyr)
 # 'strainCol': The column containing strain id's (as an unquoted name)
 # 'check': Should virus identifiers be checked for validity?
 # returns: the original dataframe, with just one strain associated with each species
-sample_strains <- function(data, sppCol = UniversalName, strainCol = Strain, check = TRUE) {
+sample_strains <- function(data, sppCol = LatestSppName, strainCol = Strain, check = TRUE) {
 	# Capture column names
 	sppCol <- enquo(sppCol)
 	strainCol <- enquo(strainCol)

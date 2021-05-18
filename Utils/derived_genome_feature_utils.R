@@ -11,7 +11,7 @@ library(EnvStats)
 #     <..DistanceType..>_<..setprefix..>_<..feature..>)
 get_feature_dists <- function(virusFeatures, geneFeatures, weightBy, featureColNames, setprefix) {
 	featureDists <- virusFeatures %>% 
-		select(UniversalName, Strain)
+		select(LatestSppName)
 	
 	# These columns do not vary (e.g. because there's only one codon):
 	featureColNames <- featureColNames[! featureColNames %in% c('N', 'ATG.Bias')]

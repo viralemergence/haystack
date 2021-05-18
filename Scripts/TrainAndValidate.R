@@ -58,8 +58,7 @@ source(file.path('Utils', 'select_features.R'))
 record_predictions <- function(model, raw_data, caret_data, iteration, dataset_name) {
 	data.frame(Iteration = iteration,
 						 Dataset = dataset_name,
-						 UniversalName = raw_data$UniversalName,
-						 Strain = raw_data$Strain,
+						 LatestSppName = raw_data$LatestSppName,
 						 InfectsHumans = raw_data[[PREDICT_COLUMN]], 
 						 Predicted = predict(model, newdata = caret_data),
 						 RawScore = predict(model, newdata = caret_data, type = 'prob')[[POSITIVE_NAME]])
@@ -178,7 +177,7 @@ set.seed(INPUT$RandomSeed)
 
 # Non-feature columns:
 # - These may be needed in calculating features, but should not be used for training directly
-RemoveCols <- c('UniversalName', 'Strain', 'LatestSppName', 'Accessions', 'OtherTaxonomicInfo',
+RemoveCols <- c('LatestSppName', 'Accessions', 'OtherTaxonomicInfo',
 								'Reservoir', 'Hosts', 'VectorBorne', 'Vector', 'PubmedResults', 'Reference_Reservoir',
 								'Reference_Vector', 'Reference', 'DataSource', 'HumanOnly', 'IndirectDetectionOnly',
 								'HumanVirus', 'Olival', 'SppName_ICTV_MSL2018v1', 'Remove', 'X')
@@ -241,14 +240,14 @@ for (s in 1:INPUT$nseeds) {
 			calibration_PN_summary <- get_pn_features(queryAccessions = calibrationData$Accessions, dbData = trainData)  # Blast db is always training data only
 			test_PN_summary <- get_pn_features(queryAccessions = testData$Accessions, dbData = trainData)								 # Blast db is always training data only
 			
-			# Joins below only valid if UniversalNames are unique:
-			stopifnot(nrow(trainData) == length(unique(trainData$UniversalName)))
-			stopifnot(nrow(calibrationData) == length(unique(calibrationData$UniversalName)))
-			stopifnot(nrow(testData) == length(unique(testData$UniversalName)))
+			# Joins below only valid if LatestSppNames are unique:
+			stopifnot(nrow(trainData) == length(unique(trainData$LatestSppName)))
+			stopifnot(nrow(calibrationData) == length(unique(calibrationData$LatestSppName)))
+			stopifnot(nrow(testData) == length(unique(testData$LatestSppName)))
 			
-			trainData <- full_join(trainData, train_PN_summary, by = c(UniversalName = 'queryUniversalName'))
-			calibrationData <- full_join(calibrationData, calibration_PN_summary, by = c(UniversalName = 'queryUniversalName'))
-			testData <- full_join(testData, test_PN_summary, by = c(UniversalName = 'queryUniversalName'))
+			trainData <- full_join(trainData, train_PN_summary, by = c(LatestSppName = 'queryUniversalName'))
+			calibrationData <- full_join(calibrationData, calibration_PN_summary, by = c(LatestSppName = 'queryUniversalName'))
+			testData <- full_join(testData, test_PN_summary, by = c(LatestSppName = 'queryUniversalName'))
 		}
 		
 		if (INPUT$includeTaxonomy) {

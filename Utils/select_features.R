@@ -26,7 +26,6 @@ library(stringr)
 # - train_proportion: proportion of data to select for training
 select_best_features <- function(data, predict_column, positive_name, removecols, 
 																 pn_feature_function, random_seed,
-																 include_pn = FALSE, include_taxonomy = FALSE,
 																 n_features = 100, n_repeats = 100, train_proportion = 0.7) {
 	
 	# These are the defaults for xgboost
@@ -46,23 +45,6 @@ select_best_features <- function(data, predict_column, positive_name, removecols
 			group_by_at(predict_column) %>%
 			sample_frac(size = train_proportion, replace = FALSE) %>%
 			ungroup()
-		
-		# Calculate proportions / PN features (which vary by training set)
-		if (include_pn) {
-			stopifnot(nrow(trainData) == length(unique(trainData$UniversalName))) # Join below only valid if UniversalNames are unique
-			
-			train_PN_summary <- pn_feature_function(queryAccessions = trainData$Accessions, dbData = trainData, removeSelf = TRUE)
-			trainData <- full_join(trainData, train_PN_summary, by = c(UniversalName = 'queryUniversalName'))
-		}
-		
-		if (include_taxonomy) {
-			train_proportions <- trainData %>%
-				group_by(.data$Taxonomy_Family) %>%
-				summarise(Taxonomy_PropPositiveInFamily = sum(.data[[predict_column]] == positive_name) / n()) %>%
-				ungroup()
-			
-			trainData <- left_join(trainData, train_proportions, by = 'Taxonomy_Family')
-		}
 		
 		# Training
 		caretData <- trainData %>%

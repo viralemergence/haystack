@@ -25,7 +25,7 @@ VIRUS_SEQS_GENBANK <- './ExternalData/Sequences/'
 VIRUS_SEQS_FASTA <- './ExternalData/Sequences/CombinedSequences.fasta'
 
 ISG_IDENTITY <- './InternalData/Shaw2017_raw/ISG_PublishedData_Web.csv'
-EXPRESSION_DATA <- './InternalData/Shaw2017_raw/ISG_CountsPerMillion_Human.csv'  # TODO: should be using TPM instead of these CPM values
+EXPRESSION_DATA <- './InternalData/Shaw2017_raw/ISG_CountsPerMillion_Human.csv'
 
 HOUSEKEEPING_IDENTITY <- './CalculatedData/HumanGeneSets/HousekeepingGeneIDs.csv'
 
@@ -141,14 +141,13 @@ transcriptSequences <- read.fasta(TRANSCRIPT_SEQS)
 
 # Each virus strain gets a unique summary:
 virusMetaData <- virusMetaData %>% 
-	select(UniversalName, Strain, Accessions) %>% 
-	mutate(virusID = paste(UniversalName, Strain, sep = '_'))
+	select(LatestSppName, Accessions)
 
 
 # Each strain may be associated with multiple sequences (if it's segmented)
 # By giving these sequences the same name, summaries are combined:
 featureDat <- virusMetaData %>% 
-	select(Name = virusID,
+	select(Name = LatestSppName,
 				 SequenceID = Accessions) %>% 
 	mutate(SequenceID = strsplit(SequenceID, split = '; ')) %>% 
 	unnest()
@@ -167,7 +166,7 @@ virusEntireSeq <- calculate_genomic(featureDat, VIRUS_SEQS_FASTA, noncoding = TR
 
 virusFeatures <- virusCoding %>% 
 	full_join(virusEntireSeq, by = 'SeqName') %>% 
-	left_join(virusMetaData, by = c('SeqName' = 'virusID'))
+	left_join(virusMetaData, by = c('SeqName' = 'LatestSppName'))
 
 
 
@@ -320,7 +319,7 @@ featureColNames <- colnames(virusFeatures)[grepl(ALL_FEATURES, colnames(virusFea
 featureColNames <- featureColNames[! featureColNames %in% c('N', 'ATG.Bias')] # These don't vary
 
 virusFeatures <- virusFeatures %>% 
-	select(UniversalName, Strain, featureColNames)
+	select(LatestSppName, featureColNames)
 
 saveRDS(virusFeatures, './CalculatedData/GenomicFeatures-Virus.rds')
 
@@ -338,7 +337,7 @@ saveRDS(humanFeatures, './CalculatedData/GenomicFeatures-HumanCombined.rds')
 
 # For machine learning, using the distances:
 featureDists <- isgDists %>% 
-	full_join(housekeepingDists, by = c('UniversalName', 'Strain')) %>% 
-	full_join(remainingDists, by = c('UniversalName', 'Strain'))
+	full_join(housekeepingDists, by = 'LatestSppName') %>% 
+	full_join(remainingDists, by = 'LatestSppName')
 
 saveRDS(featureDists, './CalculatedData/GenomicFeatures-Distances.rds')

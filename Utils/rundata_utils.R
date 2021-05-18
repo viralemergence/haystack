@@ -41,27 +41,3 @@ read_multiple_runs <- function(runids, suffix, file_type = c('rds', 'csv'), simp
 	}
 }
 
-
-
-# DEPRECATED: saved model fits now include the virus names mapping to each row of training data
-# get_virus_names <- function(dataset, features, join_by, latest_names) {
-# 	# Trained models contain training data, but these do not have virus names. Here, re-identifying these rows by matching 
-# 	# genome feature values, since we know all genomes are unique.
-# 	vnames <- dataset %>% 
-# 		mutate(RowID = 1:nrow(.)) %>% 
-# 		left_join(features, by = join_by) %>% 
-# 		left_join(latest_names, by = c('UniversalName', 'Strain')) %>% 
-# 		select(.data$RowID, .data$LatestSppName, .data$InfectsHumans)
-# 	
-# 	if (any(table(vnames$RowID) > 1)) {
-# 		warning('Rows could not be uniquely identified - these will be removed completely (i.e. remain unnamed)')
-# 		vnames <- vnames %>% 
-# 			group_by(RowID) %>% 
-# 			mutate(N = n()) %>% 
-# 			ungroup() %>% 
-# 			filter(.data$N == 1) %>% 
-# 			select(-.data$N)
-# 	}
-# 	
-# 	vnames
-# }
