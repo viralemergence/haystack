@@ -41,6 +41,12 @@ ExternalData/HousekeepingGenes.txt:
 	mkdir -p ExternalData
 	curl -L -o $@ 'https://www.tau.ac.il/~elieis/HKG/HK_genes.txt'
 
+ExternalData/Shaw2017_raw/ISG_CountsPerMillion_Human.csv:
+	curl -L -o $@ 'https://github.com/Nardus/zoonotic_rank/raw/main/InternalData/Shaw2017_raw/ISG_CountsPerMillion_Human.csv'
+
+ExternalData/Shaw2017_raw/ISG_PublishedData_Web.csv:
+	curl -L -o $@ 'https://github.com/Nardus/zoonotic_rank/raw/main/InternalData/Shaw2017_raw/ISG_PublishedData_Web.csv'
+
 
 # Data from main LF-SVD project:
 ExternalData/svd_embeddings.csv:
@@ -71,7 +77,7 @@ get_sequences: ExternalData/Sequences/CombinedSequences.fasta
 # ----------------------------------------------------------------------------------------
 #?	 3. Download human transcript sequences from Ensembl (get_transcripts)
 # ----------------------------------------------------------------------------------------
-CalculatedData/HumanGeneSets/TranscriptSequences.fasta: InternalData/Shaw2017_raw/ISG_CountsPerMillion_Human.csv \
+CalculatedData/HumanGeneSets/TranscriptSequences.fasta: ExternalData/Shaw2017_raw/ISG_CountsPerMillion_Human.csv \
                                                         ExternalData/HousekeepingGenes.txt
 	python3 Misc/DownloadGeneSets.py
 
@@ -112,8 +118,8 @@ merge_and_clean_data:  CalculatedData/FinalData_Cleaned.rds
 # together, simply ensuring the first of them gets updated
 CalculatedData/GenomicFeatures-Virus.rds: CalculatedData/FinalData_Cleaned.rds \
                                           ExternalData/Sequences/CombinedSequences.fasta \
-										  InternalData/Shaw2017_raw/ISG_PublishedData_Web.csv \
-										  InternalData/Shaw2017_raw/ISG_CountsPerMillion_Human.csv \
+										  ExternalData/Shaw2017_raw/ISG_PublishedData_Web.csv \
+										  ExternalData/Shaw2017_raw/ISG_CountsPerMillion_Human.csv \
 										  CalculatedData/HumanGeneSets/TranscriptSequences.fasta
 	Rscript Scripts/CalculateGenomicFeatures.R
 
@@ -142,7 +148,6 @@ N_FEATS = 125  # Optimized in preious manuscript (zoonotic_rank)
 RunData/AllGenomeFeatures_SVD: $(TRAIN_REQUIREMENTS) $(RELATIVE_GENOMIC) ExternalData/svd_embeddings.csv
 	Rscript Scripts/TrainAndValidate.R $(RANDOM_SEED) $(notdir $(@)) --nthread $(N_CORES) \
 		--includeVirusFeatures --includeISG --includeHousekeeping --includeRemaining \
-		--filter_to_SVD_species \
 		--topFeatures $(N_FEATS)
 
 # - SVD runs
@@ -223,7 +228,7 @@ make_plots:
 # ----------------------------------------------------------------------------------------
 # Cleanup
 # ----------------------------------------------------------------------------------------
-.PHONY: confirm as_distributed clean
+.PHONY: confirm clean
 
 confirm:
 	@echo -n "Removing generated files - are you sure? [y/N] " && read ans && [ $${ans:-N} = y ]
@@ -236,7 +241,6 @@ clean: confirm
 	-rm -rfv CalculatedData
 	-rm -rfv RunData
 	-rm -rfv Plots
-	-rm -fv .Renviron
 
 
 # ----------------------------------------------------------------------------------------

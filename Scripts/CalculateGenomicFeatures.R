@@ -24,8 +24,8 @@ VIRUS_DATA <- './CalculatedData/FinalData_Cleaned.rds'
 VIRUS_SEQS_GENBANK <- './ExternalData/Sequences/'
 VIRUS_SEQS_FASTA <- './ExternalData/Sequences/CombinedSequences.fasta'
 
-ISG_IDENTITY <- './InternalData/Shaw2017_raw/ISG_PublishedData_Web.csv'
-EXPRESSION_DATA <- './InternalData/Shaw2017_raw/ISG_CountsPerMillion_Human.csv'
+ISG_IDENTITY <- './ExternalData/Shaw2017_raw/ISG_PublishedData_Web.csv'
+EXPRESSION_DATA <- './ExternalData/Shaw2017_raw/ISG_CountsPerMillion_Human.csv'
 
 HOUSEKEEPING_IDENTITY <- './CalculatedData/HumanGeneSets/HousekeepingGeneIDs.csv'
 

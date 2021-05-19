@@ -19,7 +19,7 @@ from time import sleep
 
 
 DATA_PATH = os.path.join('..', 'CalculatedData', 'HumanGeneSets')
-ISG = os.path.join('..', 'InternalData', 'Shaw2017_raw', 'ISG_CountsPerMillion_Human.csv')
+ISG = os.path.join('..', 'ExternalData', 'Shaw2017_raw', 'ISG_CountsPerMillion_Human.csv')
 HOUSEKEEPING = os.path.join('..', 'ExternalData', 'HousekeepingGenes.txt')
 
 
