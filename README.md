@@ -13,82 +13,53 @@ Code used for the zoonotic potential part of Poisot _et al._ (2021) "Imputing th
 
 ## Requirements
 - Install the [conda package manager](https://conda.io/)
-- Install and activate the base environment:
+- All other requirements can be installed in a self-contained environment using:
 ```
 conda env create -f environment.yml
-conda activate haystack_zoonotic
 ```
 
 
 ## Usage
 
-Follow instructions below to repeat the analyses described in the manuscript. Note that making predictions for novel viruses is not currently possible with these models; but can be done with the original genome feature based models (see [zoonotic_rank](https://github.com/Nardus/zoonotic_rank)).
-
-#### Basic
-These steps will download any missing source data and automatically create/update files as needed.
+The commands below will repeat all analyses described in the manuscript. Note that making predictions for novel viruses is not currently possible with these models, but can be done with the original genome feature based models (see [zoonotic_rank](https://github.com/Nardus/zoonotic_rank)).
 
 ```
 conda activate haystack_zoonotic
 make
 ```
 
-#### Advanced options
-
-- Use `make help` to see individual steps in the pipeline. Upstream steps are run automatically if needed. For example, using `make prepare` will run the data cleanup step, but also downloads the raw data if needed.
-- `make <path to file>` runs all steps neccesary to produce/update the specified file (e.g. `make Plots/Figure1.pdf`).
-- `make as_distributed` resets the project to the state in which it was distributed.
-- `make clean` removes all run-related files, allowing a complete re-run (in contrast to `as_distributed`, this includes removing the pre-trained models required for prediction).
+Use `make help` to see individual steps in the pipeline and further instructions. 
 
 
 ## File structure
-(files/folders which will be created during a full run are indicated by `[*]`)
+(files/folders which will be created during model training are indicated by `[*]`)
 
 ```
 └─zoonotic_rank/
    ├─Makefile ................................. Record of workflow and dependencies
    │                                            between files
-   ├─options.config ........................... Runtime options (speciefies number
+   ├─environment.yml .......................... Record of software/package versions 
+   │                                            used
+   ├─options.config ........................... Runtime options (specifies number
    │                                            of parrallel threads allowed and 
    │                                            the random seed)
+   │
    ├─InternalData/ ............................ All data unique to this project
-   │   ├─example_files/ ....................... Example input files for 
-   │   │                                        predicting novel viruses 
    │   ├─Shaw2017_raw/ ........................ Raw ISG data from Shaw et al. 
    │   │                                        2017 (see https://isg.data.cvr.ac.uk/)
-   │   ├─FinalData_Cleaned.csv .................Final dataset, as used for training. 
-   │   │                                        Created by merging files below 
-   │   │                                        (see Scripts/MergeAndCleanData.R)
-   │   ├─AllInternalData_Checked.csv .......... Metadata for the viruses used 
-   │   │                                        as training data
-   │   ├─Final_Accessions_Unique_Spp.csv ...... Accession numbers of sequences 
-   │   │                                        used for training (replaces 
-   │   │                                        those in the metadata file)
-   │   ├─NameMatches_All.csv .................. Manually curated list used to 
-   │   │                                        match virus names to unique 
-   │   │                                        species across external datasets
-   │   ├─SourcesOfZoonoses_BabayanZoonotic.csv  Additional zoonotic status data 
-   │   │                                        for species not available in 
-   │   │                                        external data sources
-   │   └─Taxonomy_UnclassifiedViruses.csv ..... Taxonomic information for 
-   │                                            unclassified viruses in the 
-   │                                            metadata (unused)
+   │   └─svd_curated_accessions.csv ........... Accession numbers for each virus  
+   │                                            species in the clover database
+   │                                            (where a full genome is available)
    │
-   ├─CalculatedData/ .......................... Intermediate calculations ([*], except 
-   │                                            for files required by PredictNovel.R)
+   ├─CalculatedData/ .......................... [*] Intermediate calculations 
    ├─ExternalData/ ............................ [*] Data from external sources, 
    │                                            dowloaded as needed (see Makefile)
-   ├─Misc/ .................................... Miscelaneous scripts to download 
+   ├─Misc/ .................................... Scripts to download 
    │                                            external data
    ├─Plots/ ................................... [*] Final plots generated
-   ├─Predictions/ ............................. [*] Predictions for case studies
-   ├─renv/ .................................... Record of R libraries required
-   ├─RunData/ ................................. Trained models ([*], except for 
-   │                                            files required by PredictNovel.R)
-   ├─Scripts/ ................................. Main analysis, prediction, and 
-   │   │                                        plotting scripts
-   │   └─Plotting/ ............................ Scripts to generate published plots
-   ├─Tests/ ................................... Unit tests for basic functionality 
-   │                                            of utility scripts
+   ├─RunData/ ................................. [*] Trained models
+   ├─Scripts/ ................................. Main analysis and plotting scripts
    └─Utils/ ................................... Utility functions and tools called 
-                                                by other scripts
+                                                by other scripts, including CPB_Machine.jar
+                                                from https://github.com/rjorton/VirusFeatures
 ```

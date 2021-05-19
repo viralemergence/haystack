@@ -41,3 +41,5 @@ InternalData/svd_unmatched.csv
 # Output directories
 ExternalData/*
 CalculatedData/*
+RunData/*
+Plots/*
