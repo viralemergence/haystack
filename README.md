@@ -35,7 +35,7 @@ Use `make help` to see individual steps in the pipeline and further instructions
 (files/folders which will be created during model training are indicated by `[*]`)
 
 ```
-└─zoonotic_rank/
+└─haystack_zoonotic/
    ├─Makefile ................................. Record of workflow and dependencies
    │                                            between files
    ├─environment.yml .......................... Record of software/package versions 
