@@ -1,4 +1,4 @@
-# Use imputed host-virus associations to predict zoonotic risk
+# Use imputed host-virus associations to predict human infection risk
 
 Code used for the zoonotic potential part of Poisot _et al._ (2021) "Imputing the mammalian virome with linear filtering and singular value decomposition". This repository is derived from [zoonotic_rank](https://github.com/Nardus/zoonotic_rank), described in [Mollentze et al. (2020)](https://doi.org/10.1101/2020.11.12.379917).
 
@@ -13,8 +13,7 @@ conda env create -f environment.yml
 
 ## Usage
 
-The commands below will repeat all analyses described in the manuscript. Note that making predictions for novel viruses is not currently possible with these models, but can be done with the original genome feature-based models (see [zoonotic_rank](https://github.com/Nardus/zoonotic_rank)).
-
+The commands below will repeat all analyses described in the manuscript. Note that making predictions for novel viruses is not currently possible with these models, but can be done with the original genome feature-based models (see [zoonotic_rank](https://github.com/Nardus/zoonotic_rank)). Running the full pipeline will take several days (approximately 1 week on a 16-core AMD 5950X processor). 
 ```
 conda activate haystack_zoonotic
 make
