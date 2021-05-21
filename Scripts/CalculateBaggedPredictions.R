@@ -34,20 +34,23 @@ N_TOP <- INPUT$Ntop  # Predictions for each virus will be based on the top N_TOP
 # =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 # ---- Libraries / utils --------------------------------------------------------------------------
 # =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
-library(rprojroot)
 library(dplyr)
 library(tidyr)
 library(ModelMetrics)
-library(betacal)
 library(parallel)
 
+# betacal can't be installed via conda:
+if (!require("betacal")) {
+  install.packages("betacal", repos = "https://cloud.r-project.org", verbose = FALSE)
+  library(betacal)
+}
 
-RootDir <- find_rstudio_root_file()
-setwd(RootDir)
-RunDataDir <- file.path(RootDir, 'RunData', RUN_ID)
+
+RunDataDir <- file.path('RunData', RUN_ID)
 
 source(file.path('Utils', 'rundata_utils.R'))
 source(file.path('Utils', 'calibration_utils.R'))
+source(file.path('Utils', 'prediction_utils.R'))
 
 
 # =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
@@ -63,26 +66,26 @@ predictions_all <- file.path(RunDataDir, paste0(RUN_ID, '_Predictions.rds')) %>%
 # - For each virus, calculate AUCs for all models in which it occurs in the test set,
 #   but *without* using that virus in the calculation
 get_auc <- function(virus_name, predictions) {
-	keep_models <- predictions$Iteration[predictions$UniversalName == virus_name]
+	keep_models <- predictions$Iteration[predictions$LatestSppName == virus_name]
 	
 	predictions %>% 
 		filter(.data$Iteration %in% keep_models) %>% 
-		filter(.data$UniversalName != virus_name) %>% 
+		filter(.data$LatestSppName != virus_name) %>% 
 		group_by(.data$Iteration) %>% 
 		summarise(AUC = auc(actual = .data$InfectsHumans, predicted = .data$RawScore)) %>% 
-		mutate(UniversalName = virus_name)
+		mutate(LatestSppName = virus_name)
 }
 
 preds <- predictions_all %>% 
 	filter(.data$Dataset == 'test') %>% 
 	mutate(InfectsHumans = .data$InfectsHumans == 'True')
 
-AUCs <- mclapply(unique(preds$UniversalName), get_auc, predictions = preds, mc.cores = INPUT$nthreads) %>% 
+AUCs <- mclapply(unique(preds$LatestSppName), get_auc, predictions = preds, mc.cores = INPUT$nthreads) %>% 
 	bind_rows()
 
 
 predictions_all <- predictions_all %>% 
-	left_join(AUCs, by = c('Iteration', 'UniversalName'))
+	left_join(AUCs, by = c('Iteration', 'LatestSppName'))
 
 
 
@@ -97,6 +100,13 @@ predictions_all <- predictions_all %>%
 	group_modify(~ calibrate_preds(.x, calibration_preds = calibration_preds))
 
 
+# Use (calibrated) calibration set to find a cutoff too:
+calibration_preds <- predictions_all %>% 
+  filter(.data$Dataset == 'calibration')
+
+cutoff <- find_best_cutoff(calibration_preds$InfectsHumans, calibration_preds$CalibratedScore)
+
+
 # =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 # ---- Calculate averaged predictions -------------------------------------------------------------
 # =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
@@ -105,7 +115,7 @@ predictions_all <- predictions_all %>%
 # Check that all viruses occur in at least N_TOP models:
 ModelCounts <- predictions_all %>% 
 	filter(.data$Dataset == 'test') %>% 
-	group_by(.data$UniversalName) %>% 
+	group_by(.data$LatestSppName) %>% 
 	summarise(N = n()) %>% 
 	.$N
 
@@ -127,7 +137,7 @@ message("Viruses occur in the test sets of ", min(ModelCounts), " to ", max(Mode
 # Make predictions
 bagged_predictions <- predictions_all %>%
 	filter(.data$Dataset == 'test') %>% 
-	group_by(.data$UniversalName) %>% 
+	group_by(.data$LatestSppName) %>% 
 	mutate(Rank = rank(-.data$AUC, ties.method = 'random')) %>%     # Reverse rank, i.e. the best model has rank 1
 	filter(.data$Rank <= N_TOP) 
 
@@ -135,6 +145,7 @@ if (any(bagged_predictions$CalibrationMethod == 'ab'))
 	warning('Three-paramater calibration failed in some cases. Using a mixture of two- and three-parameter calibrated probabilities for bagging')
 
 bagged_predictions <- bagged_predictions %>%
+  group_by(.data$LatestSppName) %>% 
 	summarise(N = n(),
 						InfectsHumans = unique(.data$InfectsHumans),
 						BagScore_Lower = quantile(.data$CalibratedScore, probs = 0.05/2),
@@ -143,8 +154,27 @@ bagged_predictions <- bagged_predictions %>%
 
 
 # =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+# ---- Add binary prediction / zoonotic potential level -------------------------------------------
+# =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+bagged_predictions <- bagged_predictions %>% 
+  group_by(.data$LatestSppName) %>% 
+  mutate(bagged_prediction = .data$BagScore >= cutoff,
+         zoonotic_potential = prioritize(lower_bound = .data$BagScore_Lower,
+                                         upper_bound = .data$BagScore_Upper,
+                                         median = .data$BagScore,
+                                         cutoff = cutoff)) %>%
+  ungroup()
+
+
+# =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 # ---- Output results -----------------------------------------------------------------------------
 # =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
-saveRDS(AUCs, file.path(RunDataDir, paste0(RUN_ID, '_Bagging_AUCs.rds')))
-saveRDS(bagged_predictions, file.path(RunDataDir, paste0(RUN_ID, '_Bagged_predictions.rds')))
+out_dir <- file.path('RunData', 'BaggedModels')
+dir.create(out_dir)
 
+saveRDS(AUCs, file.path(out_dir, paste0(RUN_ID, '_Bagging_AUCs.rds')))
+
+saveRDS(bagged_predictions, 
+        file.path(out_dir, paste0(RUN_ID, '_Bagged_predictions.rds')))
+
+saveRDS(cutoff, file.path(out_dir, paste0(RUN_ID, '_Bagging_cutoff.rds')))

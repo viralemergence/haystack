@@ -148,20 +148,23 @@ N_FEATS = 125  # Optimized in preious manuscript (zoonotic_rank)
 RunData/AllGenomeFeatures_SVD: $(TRAIN_REQUIREMENTS) $(RELATIVE_GENOMIC) ExternalData/svd_embeddings.csv
 	Rscript Scripts/TrainAndValidate.R $(RANDOM_SEED) $(notdir $(@)) --nthread $(N_CORES) \
 		--includeVirusFeatures --includeISG --includeHousekeeping --includeRemaining \
-		--topFeatures $(N_FEATS)
+		--topFeatures $(N_FEATS) \
+		--nboot 1000 --nseeds 100
 
 # - SVD runs
 RunData/SVD_clover_rank12: $(TRAIN_REQUIREMENTS) $(RELATIVE_GENOMIC) ExternalData/svd_embeddings.csv
 	Rscript Scripts/TrainAndValidate.R $(RANDOM_SEED) $(notdir $(@)) --nthread $(N_CORES) \
 		--includeSVD_clover \
 		--SVD_max_rank 12 \
-		--topFeatures $(N_FEATS)
+		--topFeatures $(N_FEATS) \
+		--nboot 1000 --nseeds 100
 		
 RunData/SVD_trefle_rank12: $(TRAIN_REQUIREMENTS) $(RELATIVE_GENOMIC) ExternalData/svd_embeddings.csv
 	Rscript Scripts/TrainAndValidate.R $(RANDOM_SEED) $(notdir $(@)) --nthread $(N_CORES) \
 		--includeSVD_trefle \
 		--SVD_max_rank 12 \
-		--topFeatures $(N_FEATS)
+		--topFeatures $(N_FEATS) \
+		--nboot 1000 --nseeds 100
 		
 # Combinations with SVD
 RunData/AllGenomeFeatures_and_SVD_clover_rank12: $(TRAIN_REQUIREMENTS) $(RELATIVE_GENOMIC) ExternalData/svd_embeddings.csv
@@ -169,18 +172,10 @@ RunData/AllGenomeFeatures_and_SVD_clover_rank12: $(TRAIN_REQUIREMENTS) $(RELATIV
 		--includeVirusFeatures --includeISG --includeHousekeeping --includeRemaining \
 		--includeSVD_clover \
 		--SVD_max_rank 12 \
-		--topFeatures $(N_FEATS)
+		--topFeatures $(N_FEATS) \
+		--nboot 1000 --nseeds 100
 
 RunData/AllGenomeFeatures_and_SVD_trefle_rank12: $(TRAIN_REQUIREMENTS) $(RELATIVE_GENOMIC) ExternalData/svd_embeddings.csv
-	Rscript Scripts/TrainAndValidate.R $(RANDOM_SEED) $(notdir $(@)) --nthread $(N_CORES) \
-		--includeVirusFeatures --includeISG --includeHousekeeping --includeRemaining \
-		--includeSVD_trefle \
-		--SVD_max_rank 12 \
-		--topFeatures $(N_FEATS)
-
-
-## Long run for best model:
-RunData/AllGenomeFeatures_and_SVD_trefle_rank12_LongRun: $(TRAIN_REQUIREMENTS) $(RELATIVE_GENOMIC) ExternalData/svd_embeddings.csv
 	Rscript Scripts/TrainAndValidate.R $(RANDOM_SEED) $(notdir $(@)) --nthread $(N_CORES) \
 		--includeVirusFeatures --includeISG --includeHousekeeping --includeRemaining \
 		--includeSVD_trefle \
@@ -189,12 +184,13 @@ RunData/AllGenomeFeatures_and_SVD_trefle_rank12_LongRun: $(TRAIN_REQUIREMENTS) $
 		--nboot 1000 --nseeds 100
 
 
-ALL_RUN_IDS = AllGenomeFeatures_SVD SVD_clover_rank12 SVD_trefle_rank12 \
-				AllGenomeFeatures_and_SVD_clover_rank12 \
-				AllGenomeFeatures_and_SVD_trefle_rank12 \
-				AllGenomeFeatures_and_SVD_trefle_rank12_LongRun
+RUN_IDS = AllGenomeFeatures_SVD \
+			SVD_clover_rank12 \
+			SVD_trefle_rank12 \
+			AllGenomeFeatures_and_SVD_clover_rank12 \
+			AllGenomeFeatures_and_SVD_trefle_rank12
 
-TRAIN_OUTPUT_FOLDERS = $(patsubst %, RunData/%, $(ALL_RUN_IDS))
+TRAIN_OUTPUT_FOLDERS = $(patsubst %, RunData/%, $(RUN_IDS))
 
 .PHONY: train
 train: $(TRAIN_OUTPUT_FOLDERS)
@@ -205,12 +201,13 @@ train: $(TRAIN_OUTPUT_FOLDERS)
 #?	8. Bagged predictions (bag_predictions)
 # ----------------------------------------------------------------------------------------
 # Currently only using bagging for long runs - need each virus to occur enough test sets:
-RunData/AllGenomeFeatures_and_SVD_trefle_rank12_LongRun/AllGenomeFeatures_and_SVD_trefle_rank12_LongRun_Bagged_predictions.rds: | RunData/AllGenomeFeatures_and_SVD_trefle_rank12_LongRun
-	Rscript Scripts/CalculateBaggedPredictions.R $(RANDOM_SEED) AllGenomeFeatures_and_SVD_trefle_rank12_LongRun --Ntop 100
+RunData/BaggedModels/%_Bagged_predictions.rds: | RunData/%
+	Rscript Scripts/CalculateBaggedPredictions.R $(RANDOM_SEED) $* --Ntop 100
 
+BAG_OUTPUT = $(patsubst %, RunData/BaggedModels/%_Bagged_predictions.rds, $(RUN_IDS))
 
 .PHONY: bag_predictions
-bag_predictions: RunData/AllGenomeFeatures_and_SVD_trefle_rank12_LongRun/AllGenomeFeatures_and_SVD_trefle_rank12_LongRun_Bagged_predictions.rds
+bag_predictions: $(BAG_OUTPUT)
 
 
 
@@ -235,7 +232,7 @@ confirm:
 
 #?
 #? Other commands:
-#?	clean: Remove all intermediate files, including those required for predictions (which are distributed)
+#?	clean: Remove all intermediate files
 clean: confirm
 	-rm -rfv ExternalData
 	-rm -rfv CalculatedData

@@ -1,36 +1,62 @@
-## Utility functions: predict from saved model objects
-## - To reduce size, only the trained xgboost object and a few relevant components are saved
-## - This means we can no longer use caret directly to handle data transformations required 
-## 		for prediction (though the code below is based on caret's implementation)
+## Utility functions: prediction of binary labels / zoonotic potential categories
 
-# NOTE: script should be loaded alongside xgboost_utils.R, which provides the 'as_caret_data' function
-
-
-prepare_prediction_data <- function(fit, newdata, labelcol = "Name") {
-	# Get data in the format expected by caret:
-	modelFit <- fit$finalModel
-	
-	caretdata <- newdata[, colnames(newdata) %in% c(modelFit$xNames, labelcol), drop = FALSE]
-	caretdata <- as_caret_data(caretdata, labelcol = labelcol, removecols = "")  # labelcol does not matter here
-	caretdata <- caretdata[, modelFit$xNames, drop = FALSE]  # Need exactly the same order
-	
-	caretdata
+# Calculate Youden's J
+j_stat <- function(cutoff, obs, prob) {
+  stopifnot(length(obs) == length(prob))
+  
+  pred <- prob > cutoff
+  sensitivity = sum(obs & (obs == pred)) / sum(obs)
+  specificity = sum(!obs & (obs == pred)) / sum(!obs)
+  
+  sensitivity + specificity - 1
 }
 
-get_prediction <- function(fit, newdata, virusnames, model_type = 'xgbTree') {
-	modelFit <- fit$finalModel
-	
-	# Prediction functions for this model type:
-	modelInfo <- getModelInfo(model_type, regex = FALSE)[[1]]
-	
-	# Predictions:
-	probs <- modelInfo$prob(modelFit = modelFit, newdata = newdata)
-	preds <- modelInfo$predict(modelFit = modelFit, newdata = newdata)
-	
-	# Return
-	data.frame(Iteration = fit$Iteration,
-						 Name = virusnames,
-						 Prediction = preds,
-						 probs,
-						 stringsAsFactors = FALSE)
+# Calculate balance: the absolute distance between sensitivity and specificity
+# (negative, so this can be maximized)
+balance_stat <- function(cutoff, obs, prob) {
+  stopifnot(length(obs) == length(prob))
+  
+  pred <- prob > cutoff
+  sensitivity = sum(obs & (obs == pred)) / sum(obs)
+  specificity = sum(!obs & (obs == pred)) / sum(!obs)
+  
+  -abs(sensitivity - specificity)
+}
+
+
+# Find the optimal cutoff balancing sensitivity and specificity
+# - Achieved by minimizing a give test statistic: either Youdens' J (informedness) or 
+#   the best balance between sensitivity and specificity
+find_best_cutoff <- function(observed_labels, predicted_score, 
+                             positive_value = "True", 
+                             increment_size = 0.0001,
+                             stat = c("informedness", "balance")) {
+  
+  stat <- match.arg(stat)
+  stat_fun <- switch(stat,
+                     informedness = j_stat,
+                     balance = balance_stat)
+  
+  obs <- observed_labels == positive_value
+  try_cutoffs <- seq(0, 1, by = increment_size)
+  
+  distances <- vapply(try_cutoffs, stat_fun, 
+                      FUN.VALUE = numeric(1),
+                      obs = obs, prob = predicted_score)
+  
+  try_cutoffs[which.max(distances)]
+}
+
+
+
+# Convert scores into zoonotic potential / priority categories
+prioritize <- function(lower_bound, upper_bound, median, cutoff) {
+  stopifnot(length(cutoff) == 1)
+  stopifnot(cutoff > 0 & cutoff < 1)
+  
+  p <- if_else(lower_bound > cutoff, 'Very high',
+               if_else(median > cutoff, 'High',
+                       if_else(upper_bound > cutoff, 'Medium',
+                               'Low')))
+  factor(p, levels = c('Low', 'Medium', 'High', 'Very high'))
 }
