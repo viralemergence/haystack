@@ -214,11 +214,11 @@ bag_predictions: $(BAG_OUTPUT)
 # ----------------------------------------------------------------------------------------
 #?	9. Plot (make_plots)
 # ----------------------------------------------------------------------------------------
-
-# TODO
+Plots/human_models_main.pdf: $(TRAIN_OUTPUT_FOLDERS) $(BAG_OUTPUT)
+	Rscript Scripts/PlotResults.R
 
 .PHONY: make_plots
-make_plots: 
+make_plots: Plots/human_models_main.pdf
 
 
 

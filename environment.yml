@@ -18,6 +18,8 @@ dependencies:
   - r-e1071=1.7_0
   - r-argparse=2.0.1
   - r-modelmetrics=1.2.2
+  - r-cowplot=1.0.0
+  - r-ggsignif=0.6.0
   - python=3.6.5
   - biopython=1.72
   - xlrd=1.1.0
