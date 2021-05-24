@@ -38,7 +38,6 @@ RUN_NAMES <- c(AllGenomeFeatures_SVD = "Genome composition",
 							 AllGenomeFeatures_and_SVD_trefle_rank12 = "Genome composition\n+\nImputed network")
 RUN_IDS <- names(RUN_NAMES)
 
-BEST_RUN_ID <- "SVD_trefle_rank12"
 FULL_RUN_ID <- "AllGenomeFeatures_and_SVD_trefle_rank12"
 
 ## Raw clover data:
@@ -191,7 +190,7 @@ featureset_imp_plot <- ggplot(featureset_importance, aes(x = SetName, y = Rank, 
 
 
 # =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
-# ---- Compare predictions ------------------------------------------------------------------------
+# ---- Plot ranks ---------------------------------------------------------------------------------
 # =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 best_detection <- clover %>% 
   filter(.data$Host == "Homo sapiens") %>% 
@@ -269,29 +268,18 @@ ggsave2("Plots/human_models_virus_ranks.pdf", p_combined_ranks, width = 7.5, hei
 # =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 # ---- Saved cleaned table of bagged predictions --------------------------------------------------
 # =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
-# Add: zoonotic/human/other, svd name, prediction, (category?)
-name_data <- readRDS(file.path("CalculatedData", "SplitData_Training.rds")) %>% 
-	distinct(.data$UniversalName, .data$LatestSppName)
-
-svd_names <- read_csv(file.path("InternalData", "svd_name_matching.csv"))
-
-clean_bagged <- predictions_bagged %>% 
-	left_join(name_data, by = "UniversalName") %>% 
-	left_join(svd_names, by = "LatestSppName") %>% 
-	arrange(-.data$BagScore)
-
-stopifnot(!any(is.na(clean_bagged$svd_name)))
-
-clean_bagged %>% 
-	mutate(observed = .data$InfectsHumans == "True",
-				 predicted = .data$BagScore > 0.5) %>% 
-	select(virus = .data$svd_name, 
-				 .data$observed,
-				 .data$predicted,
+prediction_table <- predictions_bagged %>% 
+  filter(.data$RunID == FULL_RUN_ID) %>% 
+	arrange(-.data$BagScore) %>% 
+	select(virus = .data$LatestSppName, 
+	       observed = .data$InfectsHumans,
+	       predicted = .data$bagged_prediction,
 				 probability = .data$BagScore,
 				 probability_lower = .data$BagScore_Lower,
-				 probability_upper = .data$BagScore_Upper) %>% 
-	write_excel_csv("svd_zoonotic_rank_predictions.csv")
+				 probability_upper = .data$BagScore_Upper,
+				 .data$zoonotic_potential)
+	
+write_excel_csv(prediction_table, "Plots/svd_zoonotic_rank_predictions.csv")
 
 
 # =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
@@ -304,14 +292,14 @@ auc_test_boot %>%
 						sd = sd(.data$AUC)) %>% 
 	print()
 
-cat("\nBagged AUC for best model:\n")
+cat("\nBagged AUCs:\n")
+print(auc_bagged)
+
+cat("\nSensitivity/specificity:\n")
 predictions_bagged %>% 
-	summarise(AUC = auc(actual = .data$InfectsHumans == "True", predicted = .data$BagScore)) %>% 
+	group_by(.data$RunName, .data$InfectsHumans) %>% 
+	summarise(proportion_accurate = sum(.data$InfectsHumans == .data$bagged_prediction)/n()) %>% 
 	print()
 
-cat("\nSensitivity/specificity for best model (cutoff = 0.5):\n")
-predictions_bagged %>% 
-	mutate(Prediction = if_else(.data$BagScore > 0.5, "True", "False")) %>% 
-	group_by(.data$InfectsHumans) %>% 
-	summarise(proportion_accurate = sum(.data$InfectsHumans == .data$Prediction)/n()) %>% 
-	print()
+cat("\n when using cutoff:")
+print(cutoffs_bagged)

@@ -100,10 +100,8 @@ merge_zoonotic_status: CalculatedData/ZoonoticStatus_Merged.rds
 # ----------------------------------------------------------------------------------------
 #?	 5. Merge and clean final dataset (merge_and_clean_data)
 # ----------------------------------------------------------------------------------------
-# This has multiple outputs: using a pattern rule ensures the command is
-# run just once (see https://www.cmcrossroads.com/article/rules-multiple-outputs-gnu-make)
-CalculatedData/FinalData_%.rds CalculatedData/FinalData_%.csv: InternalData/svd_curated_accessions.csv \
-															   CalculatedData/ZoonoticStatus_Merged.rds
+CalculatedData/FinalData_Cleaned.rds: InternalData/svd_curated_accessions.csv \
+										CalculatedData/ZoonoticStatus_Merged.rds
 	Rscript Scripts/MergeAndCleanData.R
 
 .PHONY: merge_and_clean_data

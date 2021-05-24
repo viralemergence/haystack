@@ -20,6 +20,8 @@ FinalAccessions <- read_csv("InternalData/svd_curated_accessions.csv",
 
 ZoonoticStatusData <- readRDS("CalculatedData/ZoonoticStatus_Merged.rds")
 
+HostData <- read_csv("ExternalData/clover.csv")
+
 
 # =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 # ---- Merge data ---------------------------------------------------------------------------------
@@ -44,8 +46,18 @@ if (!ALLOW_INDIRECT_DETECTION) {
 
 ## Other cleanup steps:
 #		- Remove viruses which have no available sequence information
+#   - Remove viruses whose only host is human - since embeddings are calculated while excluding
+#     humans, these viruses become the only included entries with no connections in the network,
+#     resulting in a data leak if included
+human_only <- HostData %>% 
+  group_by(.data$Virus) %>% 
+  summarise(n_nonhuman = sum(.data$Host != "Homo sapiens")) %>% 
+  filter(n_nonhuman == 0) %>% 
+  pull(.data$Virus)
+
 FinalData <- FinalData %>% 
-	filter(! is.na(accession))
+	filter(!is.na(accession)) %>% 
+  filter(!.data$LatestSppName %in% human_only)
 
 
 ## Rename columns to match downstream scripts
