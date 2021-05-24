@@ -1,6 +1,8 @@
 # Use imputed host-virus associations to predict human infection risk
 
-Code used for the zoonotic potential part of Poisot _et al._ (2021) "Imputing the mammalian virome with linear filtering and singular value decomposition". This repository is derived from [zoonotic_rank](https://github.com/Nardus/zoonotic_rank), described in [Mollentze et al. (2020)](https://doi.org/10.1101/2020.11.12.379917).
+Code used for the zoonotic potential part of Poisot _et al._ (2021) "Imputing the mammalian virome with linear filtering and singular value decomposition". See [viralemergence/trefle](https://github.com/viralemergence/trefle) for the main code of this paper.
+
+This repository is derived from [zoonotic_rank](https://github.com/Nardus/zoonotic_rank), described in [Mollentze et al. (2020)](https://doi.org/10.1101/2020.11.12.379917).
 
 
 ## Requirements
