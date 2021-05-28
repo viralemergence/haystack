@@ -15,9 +15,9 @@ conda env create -f environment.yml
 
 ## Usage
 
-The commands below will repeat all analyses described in the manuscript. Note that making predictions for novel viruses is not currently possible with these models, but can be done with the original genome feature-based models (see [zoonotic_rank](https://github.com/Nardus/zoonotic_rank)). Running the full pipeline will take several days (approximately 1 week on a 16-core AMD 5950X processor). 
+The commands below will repeat all analyses described in the manuscript. Note that making predictions for novel viruses is not currently possible with these models, but can be done with the original genome feature-based models (see [zoonotic_rank](https://github.com/Nardus/zoonotic_rank)). Running the full pipeline will take several days (approximately 3 days on a 16-core AMD 5950X processor). 
 ```
-conda activate haystack_zoonotic
+conda activate haystack
 make
 ```
 
@@ -28,7 +28,7 @@ Use `make help` to see individual steps in the pipeline and further instructions
 (folders which will be created during model training are indicated by `[*]`)
 
 ```
-└─haystack_zoonotic/
+└─haystack/
    ├─Makefile ................................. Workflow specification
    ├─environment.yml .......................... Record of software/package versions 
    │                                            used

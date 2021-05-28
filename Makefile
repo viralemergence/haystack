@@ -196,7 +196,7 @@ train: $(TRAIN_OUTPUT_FOLDERS)
 
 
 # ----------------------------------------------------------------------------------------
-#?	8. Bagged predictions (bag_predictions)
+#?	 8. Bagged predictions (bag_predictions)
 # ----------------------------------------------------------------------------------------
 # Currently only using bagging for long runs - need each virus to occur enough test sets:
 RunData/BaggedModels/%_Bagged_predictions.rds: | RunData/%
@@ -210,7 +210,7 @@ bag_predictions: $(BAG_OUTPUT)
 
 
 # ----------------------------------------------------------------------------------------
-#?	9. Plot (make_plots)
+#?	 9. Plot (make_plots)
 # ----------------------------------------------------------------------------------------
 Plots/human_models_main.pdf: $(TRAIN_OUTPUT_FOLDERS) $(BAG_OUTPUT)
 	Rscript Scripts/PlotResults.R

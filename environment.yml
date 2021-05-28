@@ -1,4 +1,4 @@
-name: haystack_zoonotic
+name: haystack
 channels:
   - conda-forge
   - defaults

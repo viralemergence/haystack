@@ -16,7 +16,7 @@ import pandas as pd
 from Bio import Entrez, SeqIO
 from urllib.error import HTTPError
 
-Entrez.tool = "haystack_zoonotic pipeline - DownloadSequences.py"
+Entrez.tool = "haystack pipeline - DownloadSequences.py"
 
 Entrez.email = input("Enter an email address to use NCBI e-utils: ")
 
