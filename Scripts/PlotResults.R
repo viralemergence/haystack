@@ -303,3 +303,23 @@ predictions_bagged %>%
 
 cat("\n when using cutoff:")
 print(cutoffs_bagged)
+
+
+# =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+# ---- Print variable importance ------------------------------------------------------------------
+# =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+cat("\nTop 20 features:\n")
+featureset_importance %>% 
+	arrange(desc(.data$mean_importance)) %>% 
+	select(.data$Feature, .data$mean_importance, .data$Rank) %>% 
+	head(20) %>% 
+	print()
+
+cat("\nCorrespondence between SVD embedding rank and importance rank:\n")
+embedding_rank <- featureset_importance %>% 
+	filter(str_starts(.data$Feature, "svd")) %>% 
+	mutate(embedding_rank = str_extract(.data$Feature, "[[:alnum:]]+$"),
+				 embedding_rank = as.integer(embedding_rank))
+
+sprintf("Full model (Spearman correlation) = %.3f",
+				cor(embedding_rank$Rank, embedding_rank$embedding_rank, method = "spearman"))
